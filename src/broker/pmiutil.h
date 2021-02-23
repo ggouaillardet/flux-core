@@ -19,30 +19,44 @@ struct pmi_params {
 
 struct pmi_handle;
 
-int broker_pmi_kvs_commit (struct pmi_handle *pmi, const char *kvsname);
+typedef int (*broker_pmi_kvs_commit_t) (struct pmi_handle *pmi, const char *kvsname);
 
-int broker_pmi_kvs_put (struct pmi_handle *pmi,
-                        const char *kvsname,
-                        const char *key,
-                        const char *value);
+typedef int (*broker_pmi_kvs_put_t) (struct pmi_handle *pmi,
+                           const char *kvsname,
+                           const char *key,
+                           const char *value);
 
-int broker_pmi_kvs_get (struct pmi_handle *pmi,
-                        const char *kvsname,
-                        const char *key,
-                        char *value,
-                        int len);
+typedef int (*broker_pmi_kvs_get_t) (struct pmi_handle *pmi,
+                           const char *kvsname,
+                           const char *key,
+                           char *value,
+                           int len);
 
-int broker_pmi_barrier (struct pmi_handle *pmi);
+typedef int (*broker_pmi_barrier_t) (struct pmi_handle *pmi);
 
-int broker_pmi_get_params (struct pmi_handle *pmi, struct pmi_params *params);
+typedef int (*broker_pmi_get_params_t) (struct pmi_handle *pmi, struct pmi_params *params);
 
-int broker_pmi_init (struct pmi_handle *pmi);
+typedef int (*broker_pmi_init_t) (struct pmi_handle *pmi);
 
-int broker_pmi_finalize (struct pmi_handle *pmi);
+typedef int (*broker_pmi_finalize_t) (struct pmi_handle *pmi);
 
-void broker_pmi_destroy (struct pmi_handle *pmi);
+typedef void (*broker_pmi_destroy_t) (struct pmi_handle *pmi);
 
-struct pmi_handle *broker_pmi_create (void);
+typedef struct pmi_handle* (*broker_pmi_create_t) (void);
+
+typedef struct pmi_callbacks {
+    broker_pmi_kvs_commit_t kvs_commit;
+    broker_pmi_kvs_put_t kvs_put;
+    broker_pmi_kvs_get_t kvs_get;
+    broker_pmi_barrier_t barrier;
+    broker_pmi_get_params_t get_params;
+    broker_pmi_init_t init;
+    broker_pmi_finalize_t finalize;
+    broker_pmi_destroy_t destroy;
+    broker_pmi_create_t create;
+} pmi_callbacks_t;
+
+extern pmi_callbacks_t broker_pmi_callbacks;
 
 #endif /* !HAVE_BROKER_PMIUTIL_H */
 

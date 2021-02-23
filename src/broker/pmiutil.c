@@ -374,6 +374,18 @@ struct pmi_handle *broker_pmi_create (void)
     return pmi;
 }
 
+pmi_callbacks_t broker_pmi_callbacks = {
+    broker_pmi_kvs_commit,
+    broker_pmi_kvs_put,
+    broker_pmi_kvs_get,
+    broker_pmi_barrier,
+    broker_pmi_get_params,
+    broker_pmi_init,
+    broker_pmi_finalize,
+    broker_pmi_destroy,
+    broker_pmi_create
+};
+
 /*
  * vi:tabstop=4 shiftwidth=4 expandtab
  */

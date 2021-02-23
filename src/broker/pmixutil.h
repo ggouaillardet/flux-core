@@ -1,5 +1,5 @@
 /************************************************************\
- * Copyright 2014 Lawrence Livermore National Security, LLC
+ * Copyright 2019 Lawrence Livermore National Security, LLC
  * (c.f. AUTHORS, NOTICE.LLNS, COPYING)
  *
  * This file is part of the Flux resource manager framework.
@@ -8,21 +8,12 @@
  * SPDX-License-Identifier: LGPL-3.0
 \************************************************************/
 
-#ifndef BROKER_BOOT_PMI_H
-#define BROKER_BOOT_PMI_H
+#ifndef HAVE_BROKER_PMIXUTIL_H
+#define HAVE_BROKER_PMIXUTIL_H 1
 
-/* boot_pmi - bootstrap broker/overlay with PMI */
+extern pmi_callbacks_t broker_pmix_callbacks;
 
-#include "attr.h"
-#include "overlay.h"
-
-int boot_pmi (struct overlay *overlay, attr_t *attrs, int tbon_k);
-
-#if HAVE_PMIX
-void boot_pmix(void);
-#endif
-
-#endif /* BROKER_BOOT_PMI_H */
+#endif /* !HAVE_BROKER_PMIXUTIL_H */
 
 /*
  * vi:tabstop=4 shiftwidth=4 expandtab

@@ -60,6 +60,18 @@ libbroker_la_SOURCES = \
 	publisher.h \
 	publisher.c
 
+pmix_cppflags = \
+        @pmix_cppflags@ \
+        $(AM_CPPFLAGS)
+
+if HAVE_PMIX
+libbroker_la_SOURCES += \
+	pmixutil.h \
+	pmixutil.c
+
+libbroker_la_CPPFLAGS = $(pmix_cppflags)
+endif
+
 flux_broker_LDADD = \
 	$(builddir)/libbroker.la \
 	$(top_builddir)/src/common/libflux-core.la \

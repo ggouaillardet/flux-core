@@ -26,10 +26,22 @@
 #include "overlay.h"
 #include "boot_pmi.h"
 #include "pmiutil.h"
+#ifdef HAVE_PMIX
+#include "pmixutil.h"
+#endif
 
 
 /* Generally accepted max, although some go higher (IE is 2083) */
 #define ENDPOINT_MAX 2048
+
+static pmi_callbacks_t *pmi_callbacks = &broker_pmi_callbacks;
+
+#ifdef HAVE_PMIX
+void boot_pmix()
+{
+    pmi_callbacks = &broker_pmix_callbacks;
+}
+#endif
 
 /* Given a string with possible format specifiers, return string that is
  * fully expanded.
@@ -129,11 +141,11 @@ static int set_instance_level_attr (struct pmi_handle *pmi,
     const char *level = "0";
     const char *jobid = NULL;
 
-    result = broker_pmi_kvs_get (pmi,
-                                 kvsname,
-                                 "flux.instance-level",
-                                 val,
-                                 sizeof (val));
+    result = pmi_callbacks->kvs_get (pmi,
+                                     kvsname,
+                                     "flux.instance-level",
+                                     val,
+                                     sizeof (val));
     if (result == PMI_SUCCESS)
         level = val;
     if (attr_add (attrs, "instance-level", level, FLUX_ATTRFLAG_IMMUTABLE) < 0)
@@ -157,16 +169,16 @@ int boot_pmi (struct overlay *overlay, attr_t *attrs, int tbon_k)
     int i;
 
     memset (&pmi_params, 0, sizeof (pmi_params));
-    if (!(pmi = broker_pmi_create ())) {
+    if (!(pmi = pmi_callbacks->create ())) {
         log_err ("broker_pmi_create");
         goto error;
     }
-    result = broker_pmi_init (pmi);
+    result = pmi_callbacks->init (pmi);
     if (result != PMI_SUCCESS) {
         log_msg ("broker_pmi_init: %s", pmi_strerror (result));
         goto error;
     }
-    result = broker_pmi_get_params (pmi, &pmi_params);
+    result = pmi_callbacks->get_params (pmi, &pmi_params);
     if (result != PMI_SUCCESS) {
         log_msg ("broker_pmi_get_params: %s", pmi_strerror (result));
         goto error;
@@ -233,17 +245,17 @@ int boot_pmi (struct overlay *overlay, attr_t *attrs, int tbon_k)
         log_msg ("pmi val string overflow");
         goto error;
     }
-    result = broker_pmi_kvs_put (pmi, pmi_params.kvsname, key, val);
+    result = pmi_callbacks->kvs_put (pmi, pmi_params.kvsname, key, val);
     if (result != PMI_SUCCESS) {
         log_msg ("broker_pmi_kvs_put: %s", pmi_strerror (result));
         goto error;
     }
-    result = broker_pmi_kvs_commit (pmi, pmi_params.kvsname);
+    result = pmi_callbacks->kvs_commit (pmi, pmi_params.kvsname);
     if (result != PMI_SUCCESS) {
         log_msg ("broker_pmi_kvs_commit: %s", pmi_strerror (result));
         goto error;
     }
-    result = broker_pmi_barrier (pmi);
+    result = pmi_callbacks->barrier (pmi);
     if (result != PMI_SUCCESS) {
         log_msg ("broker_pmi_barrier: %s", pmi_strerror (result));
         goto error;
@@ -260,8 +272,8 @@ int boot_pmi (struct overlay *overlay, attr_t *attrs, int tbon_k)
             log_msg ("pmi key string overflow");
             goto error;
         }
-        result = broker_pmi_kvs_get (pmi, pmi_params.kvsname,
-                                     key, val, sizeof (val));
+        result = pmi_callbacks->kvs_get (pmi, pmi_params.kvsname,
+                                         key, val, sizeof (val));
         if (result != PMI_SUCCESS) {
             log_msg ("broker_pmi_kvs_get %s: %s", key, pmi_strerror (result));
             goto error;
@@ -294,8 +306,8 @@ int boot_pmi (struct overlay *overlay, attr_t *attrs, int tbon_k)
             log_msg ("pmi key string overflow");
             goto error;
         }
-        result = broker_pmi_kvs_get (pmi, pmi_params.kvsname,
-                                     key, val, sizeof (val));
+        result = pmi_callbacks->kvs_get (pmi, pmi_params.kvsname,
+                                         key, val, sizeof (val));
 
         if (result != PMI_SUCCESS) {
             log_msg ("broker_pmi_kvs_get %s: %s", key, pmi_strerror (result));
@@ -312,23 +324,23 @@ int boot_pmi (struct overlay *overlay, attr_t *attrs, int tbon_k)
     /* One more barrier before allowing connects to commence.
      * Need to ensure that all clients are "allowed".
      */
-    result = broker_pmi_barrier (pmi);
+    result = pmi_callbacks->barrier (pmi);
     if (result != PMI_SUCCESS) {
         log_msg ("broker_pmi_barrier: %s", pmi_strerror (result));
         goto error;
     }
 
 done:
-    result = broker_pmi_finalize (pmi);
+    result = pmi_callbacks->finalize (pmi);
     if (result != PMI_SUCCESS) {
         log_msg ("broker_pmi_finalize: %s", pmi_strerror (result));
         goto error;
     }
 
-    broker_pmi_destroy (pmi);
+    pmi_callbacks->destroy (pmi);
     return 0;
 error:
-    broker_pmi_destroy (pmi);
+    pmi_callbacks->destroy (pmi);
     return -1;
 }
 

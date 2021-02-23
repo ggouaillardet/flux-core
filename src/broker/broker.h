@@ -26,6 +26,7 @@ struct broker {
     struct modhash *modhash;
 
     int verbose;
+    bool pmix;
     int event_recv_seq;
     zlist_t *sigwatchers;
     struct service_switch *services;
