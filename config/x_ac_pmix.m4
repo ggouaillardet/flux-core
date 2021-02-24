@@ -10,7 +10,7 @@ AC_DEFUN([X_AC_PMIX], [
                  [CPPFLAGS_save=$CPPFLAGS
                   CPPFLAGS="-I$with_pmix $CPPFLAGS"])
            AC_CHECK_HEADERS([pmix.h], [pmix_support=1])
-           AS_IF([test "x$with_pmix" != "xyes"],
+           AS_IF([test "x$with_pmix" != "xyes" && test "x$with_pmix" != "x"],
                  [pmix_cppflags="-I$with_pmix"
                   CPPFLAGS=$CPPFLAGS_save])
            AS_IF([test $pmix_support -eq 0 && test "x$with_pmix" != "x"],
