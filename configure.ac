@@ -385,15 +385,7 @@ AS_IF([test "x$enable_content_s3" = "xyes"], [
 
 AM_CONDITIONAL([ENABLE_CONTENT_S3], [test "x$enable_content_s3" = "xyes"])
 
-AC_ARG_WITH([pmix], AS_HELP_STRING([--with-pmix\[=PATH\]],
-             [Build with PMIx bootstrap support]))
-AS_IF([test "x$with_pmix" != "xno" && test "x$with_pmix" != "x"], [
-    AS_IF([test "x$with_pmix" != "xyes"],
-          [pmix_cppflags="-I$with_pmix"])
-    AC_SUBST(pmix_cppflags, $pmix_cppflags)
-    AC_DEFINE([HAVE_PMIX], [1], [PMIx bootstrap support]),
-])
-AM_CONDITIONAL([HAVE_PMIX], [test "x$with_pmix" != "xno" && test "x$with_pmix" != "x"])
+X_AC_PMIX
 
 ##
 # Check for systemd
