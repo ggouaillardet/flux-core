@@ -115,7 +115,6 @@ static struct optparse_option opts[] = {
 
 enum {
     BOOTSTRAP_PMI,
-    BOOTSTRAP_PMIX,
     BOOTSTRAP_SELFPMI
 };
 
@@ -124,7 +123,6 @@ static struct {
     int num;
 } bootstrap_options[] = {
     {"pmi", BOOTSTRAP_PMI},
-    {"pmix", BOOTSTRAP_PMIX},
     {"selfpmi", BOOTSTRAP_SELFPMI},
     {NULL, -1}
 };
@@ -208,9 +206,6 @@ int main (int argc, char *argv[])
     setup_profiling_env ();
 
     switch (bootstrap) {
-    case BOOTSTRAP_PMIX:
-        if (argz_add(&command, &len, "--pmix") != 0)
-            log_msg_exit("argz_add");
     case BOOTSTRAP_PMI:
         if (optparse_hasopt (ctx.opts, "scratchdir"))
             log_msg_exit ("--scratchdir only works with --bootstrap=selfpmi");
