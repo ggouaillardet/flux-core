@@ -114,13 +114,7 @@ static void init_attrs (attr_t *attrs, pid_t pid, struct flux_msg_cred *cred);
 
 static const struct flux_handle_ops broker_handle_ops;
 
-#ifdef HAVE_PMIX
-#define PMIX_OPTION "x"
-#else
-#define PMIX_OPTION ""
-#endif
-
-#define OPTIONS "+vX:k:g:S:c:" PMIX_OPTION
+#define OPTIONS "+vX:k:g:S:c:"
 
 static const struct option longopts[] = {
     {"verbose",         no_argument,        0, 'v'},
@@ -129,9 +123,6 @@ static const struct option longopts[] = {
     {"shutdown-grace",  required_argument,  0, 'g'},
     {"setattr",         required_argument,  0, 'S'},
     {"config-path",     required_argument,  0, 'c'},
-#ifdef HAVE_PMIX
-    {"pmix",            no_argument,        0, 'x'},
-#endif
     {0, 0, 0, 0},
 };
 
@@ -144,9 +135,6 @@ static void usage (void)
 " -k,--k-ary K                 Wire up in a k-ary tree\n"
 " -S,--setattr ATTR=VAL        Set broker attribute\n"
 " -c,--config-path PATH        Set broker config directory (default: none)\n"
-#ifdef HAVE_PMIX
-" -x,--pmix                    Use PMIx (default: false)\n"
-#endif
 );
     exit (1);
 }
@@ -190,11 +178,6 @@ void parse_command_line_arguments (int argc, char *argv[], broker_ctx_t *ctx)
         case 'c': /* --config-path PATH */
             ctx->config_path = optarg;
             break;
-#ifdef HAVE_PMIX
-        case 'x': /* --pmix */
-            ctx->pmix = true;
-            break;
-#endif
         default:
             usage ();
         }
@@ -280,10 +263,6 @@ int main (int argc, char *argv[])
     ctx.cred.rolemask = FLUX_ROLE_OWNER;
 
     init_attrs (ctx.attrs, getpid (), &ctx.cred);
-
-#ifdef HAVE_PMIX
-    ctx.pmix = false;
-#endif
 
     parse_command_line_arguments (argc, argv, &ctx);
 
@@ -390,7 +369,7 @@ int main (int argc, char *argv[])
         }
     } else { // PMI
 #ifdef HAVE_PMIX
-        if (ctx.pmix) {
+        if (getenv ("PMIX_SERVER_URI") || getenv ("PMIX_SERVER_URI2")) {
             boot_pmix();
         }
 #endif
