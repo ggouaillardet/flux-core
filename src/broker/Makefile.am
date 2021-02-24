@@ -8,6 +8,7 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir) \
 	-I$(top_srcdir)/src/include \
 	-I$(top_builddir)/src/common/libflux \
+	@pmix_cppflags@ \
 	$(ZMQ_CFLAGS) \
 	$(LIBUUID_CFLAGS) \
 	$(VALGRIND_CFLAGS)
@@ -66,12 +67,6 @@ libbroker_la_SOURCES += \
 	pmixutil.c
 
 endif
-
-pmix_cppflags = \
-        @pmix_cppflags@ \
-        $(AM_CPPFLAGS)
-
-libbroker_la_CPPFLAGS = $(pmix_cppflags)
 
 flux_broker_LDADD = \
 	$(builddir)/libbroker.la \
