@@ -18,10 +18,6 @@
 
 int boot_pmi (struct overlay *overlay, attr_t *attrs, int tbon_k);
 
-#if HAVE_PMIX
-void boot_pmix(void);
-#endif
-
 #endif /* BROKER_BOOT_PMI_H */
 
 /*

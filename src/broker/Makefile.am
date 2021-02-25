@@ -61,13 +61,6 @@ libbroker_la_SOURCES = \
 	publisher.h \
 	publisher.c
 
-if PMIX_ENABLED
-libbroker_la_SOURCES += \
-	pmixutil.h \
-	pmixutil.c
-
-endif
-
 flux_broker_LDADD = \
 	$(builddir)/libbroker.la \
 	$(top_builddir)/src/common/libflux-core.la \

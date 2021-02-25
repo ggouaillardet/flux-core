@@ -115,7 +115,6 @@ static void init_attrs (attr_t *attrs, pid_t pid, struct flux_msg_cred *cred);
 static const struct flux_handle_ops broker_handle_ops;
 
 #define OPTIONS "+vX:k:g:S:c:"
-
 static const struct option longopts[] = {
     {"verbose",         no_argument,        0, 'v'},
     {"module-path",     required_argument,  0, 'X'},
@@ -367,12 +366,8 @@ int main (int argc, char *argv[])
             log_msg ("bootstrap failed");
             goto cleanup;
         }
-    } else { // PMI
-#ifdef HAVE_PMIX
-        if (getenv ("PMIX_SERVER_URI") || getenv ("PMIX_SERVER_URI2")) {
-            boot_pmix();
-        }
-#endif
+    }
+    else { // PMI
         if (boot_pmi (ctx.overlay, ctx.attrs, ctx.tbon_k) < 0) {
             log_msg ("bootstrap failed");
             goto cleanup;
