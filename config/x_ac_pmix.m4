@@ -18,6 +18,6 @@ AC_DEFUN([X_AC_PMIX], [
            AS_IF([test $pmix_support -eq 1],
                  [AC_DEFINE([HAVE_PMIX], [1], [PMIx bootstrap support])])
           ])
-    AC_SUBST(pmix_cppflags, $pmix_cppflags)
+    AC_SUBST(LIBPMIX_CFLAGS, $pmix_cppflags)
     AM_CONDITIONAL([HAVE_PMIX], [test $pmix_support -eq 1])
 ])
