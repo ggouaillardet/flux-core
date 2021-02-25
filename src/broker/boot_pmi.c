@@ -122,7 +122,8 @@ done:
  */
 static int set_instance_level_attr (struct pmi_handle *pmi,
                                     const char *kvsname,
-                                    attr_t *attrs)
+                                    attr_t *attrs,
+                                    int my_rank)
 {
     int result;
     char val[32];
@@ -133,7 +134,8 @@ static int set_instance_level_attr (struct pmi_handle *pmi,
                                  kvsname,
                                  "flux.instance-level",
                                  val,
-                                 sizeof (val));
+                                 sizeof (val),
+                                 my_rank);
     if (result == PMI_SUCCESS)
         level = val;
     if (attr_add (attrs, "instance-level", level, FLUX_ATTRFLAG_IMMUTABLE) < 0)
@@ -171,7 +173,8 @@ int boot_pmi (struct overlay *overlay, attr_t *attrs, int tbon_k)
         log_msg ("broker_pmi_get_params: %s", pmi_strerror (result));
         goto error;
     }
-    if (set_instance_level_attr (pmi, pmi_params.kvsname, attrs) < 0) {
+    if (set_instance_level_attr (pmi, pmi_params.kvsname, attrs,
+                                 pmi_params.rank) < 0) {
         log_err ("set_instance_level_attr");
         goto error;
     }
@@ -261,7 +264,7 @@ int boot_pmi (struct overlay *overlay, attr_t *attrs, int tbon_k)
             goto error;
         }
         result = broker_pmi_kvs_get (pmi, pmi_params.kvsname,
-                                     key, val, sizeof (val));
+                                     key, val, sizeof (val), rank);
         if (result != PMI_SUCCESS) {
             log_msg ("broker_pmi_kvs_get %s: %s", key, pmi_strerror (result));
             goto error;
@@ -295,7 +298,7 @@ int boot_pmi (struct overlay *overlay, attr_t *attrs, int tbon_k)
             goto error;
         }
         result = broker_pmi_kvs_get (pmi, pmi_params.kvsname,
-                                     key, val, sizeof (val));
+                                     key, val, sizeof (val), rank);
 
         if (result != PMI_SUCCESS) {
             log_msg ("broker_pmi_kvs_get %s: %s", key, pmi_strerror (result));

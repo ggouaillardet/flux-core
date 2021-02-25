@@ -440,7 +440,8 @@ int broker_pmi_kvs_get (struct pmi_handle *pmi,
                                const char *kvsname,
                                const char *key,
                                char *value,
-                               int len)
+                               int len,
+                               int from_rank)
 {
     int ret = PMI_FAIL;
 #ifdef HAVE_LIBPMIX
@@ -461,10 +462,8 @@ int broker_pmi_kvs_get (struct pmi_handle *pmi,
         case PMI_MODE_PMIX: {
             pmix_status_t rc;
 
-            /* retrieve the data from PMIx - since we don't have a rank,
-             * we indicate that by passing the UNDEF value */
             pmix_strncpy(proc.nspace, kvsname, PMIX_MAX_NSLEN);
-            proc.rank = PMIX_RANK_UNDEF;
+            proc.rank = from_rank < 0 ? PMIX_RANK_UNDEF : from_rank;
 
             rc = pmi->dso->get(&proc, key, NULL, 0, &val);
             if (PMIX_SUCCESS == rc && NULL != val) {
