@@ -30,8 +30,6 @@
 #include "liblist.h"
 
 #ifdef HAVE_LIBPMIX
-#define ANL_MAPPING "PMI_process_mapping"
-
 static pmix_proc_t myproc;
 #endif
 
@@ -460,50 +458,27 @@ int broker_pmi_kvs_get (struct pmi_handle *pmi,
             ret = pmi->dso->kvs_get (kvsname, key, value, len);
             break;
 #ifdef HAVE_LIBPMIX
-        case PMI_MODE_PMIX:
-            /* PMI-1 expects resource manager to set
-             * process mapping in ANL notation. */
-            if (!strcmp(key, ANL_MAPPING)) {
-                /* we are looking in the job-data. If there is nothing there
-                 * we don't want to look in rank's data, thus set rank to widcard */
-                proc = myproc;
-                proc.rank = PMIX_RANK_WILDCARD;
-                if (PMIX_SUCCESS == pmi->dso->get(&proc, PMIX_ANL_MAP, NULL, 0, &val) &&
-                       (NULL != val) && (PMIX_STRING == val->type)) {
+        case PMI_MODE_PMIX: {
+            pmix_status_t rc;
+
+            /* retrieve the data from PMIx - since we don't have a rank,
+             * we indicate that by passing the UNDEF value */
+            pmix_strncpy(proc.nspace, kvsname, PMIX_MAX_NSLEN);
+            proc.rank = PMIX_RANK_UNDEF;
+
+            rc = pmi->dso->get(&proc, key, NULL, 0, &val);
+            if (PMIX_SUCCESS == rc && NULL != val) {
+                if (PMIX_STRING != val->type) {
+                    rc = PMIX_ERROR;
+                } else if (NULL != val->data.string) {
                     pmix_strncpy(value, val->data.string, len-1);
-                    PMIX_VALUE_FREE(val, 1);
-                    ret = PMI_SUCCESS;
-                } else {
-                    /* artpol:
-                     * Some RM's (i.e. SLURM) already have ANL precomputed. The export it
-                     * through PMIX_ANL_MAP variable.
-                     * If we haven't found it we want to have our own packing functionality
-                     * since it's common.
-                     * Somebody else has to write it since I've already done that for
-                     * GPL'ed SLURM :) */
-                    ret = PMI_FAIL;
                 }
-            } else {
-                pmix_status_t rc;
-
-                /* retrieve the data from PMIx - since we don't have a rank,
-                 * we indicate that by passing the UNDEF value */
-                pmix_strncpy(proc.nspace, kvsname, PMIX_MAX_NSLEN);
-                proc.rank = PMIX_RANK_UNDEF;
-
-                rc = pmi->dso->get(&proc, key, NULL, 0, &val);
-                if (PMIX_SUCCESS == rc && NULL != val) {
-                    if (PMIX_STRING != val->type) {
-                        rc = PMIX_ERROR;
-                    } else if (NULL != val->data.string) {
-                        pmix_strncpy(value, val->data.string, len-1);
-                    }
-                    PMIX_VALUE_RELEASE(val);
-                }
-
-                ret = convert_err(rc);
+                PMIX_VALUE_RELEASE(val);
             }
+
+            ret = convert_err(rc);
             break;
+        }
 #endif
     }
     debugf (pmi,
