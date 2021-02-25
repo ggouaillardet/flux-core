@@ -313,6 +313,7 @@ static struct pmi_dso *broker_pmix_dlopen (const char *pmix_library, int debug)
     char *name;
 
     if ((NULL == getenv ("PMIX_SERVER_URI")) && (NULL == getenv ("PMIX_SERVER_URI2"))) {
+        log_msg ("pmix-debug-dlopen: no PMIX environment");
         /* No PMIx environment variable, fails */
         return NULL;
     }
