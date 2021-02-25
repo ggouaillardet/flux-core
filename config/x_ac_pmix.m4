@@ -8,7 +8,6 @@ AC_DEFUN([X_AC_PMIX], [
 	  [Whether to enable PMIx bootstrap support]),,
 	  enable_pmix_bootstrap=no)
 
-	AM_CONDITIONAL([PMIX_ENABLED], [test x$enable_pmix_bootstrap = xyes])
 	AC_MSG_RESULT($enable_pmix_bootstrap)
 
         AS_IF([test x$enable_pmix_bootstrap = xyes],
@@ -24,7 +23,7 @@ AC_DEFUN([X_AC_PMIX], [
              [pmix_cppflags="-I$with_pmix"
               CPPFLAGS=$CPPFLAGS_save])
            AS_IF([test $pmix_support -eq 1],
-             [AC_DEFINE([HAVE_PMIX], [1], [PMIx bootstrap support])],
+             [AC_DEFINE([HAVE_LIBPMIX], [1], [PMIx bootstrap support])],
              [AC_MSG_ERROR([PMIx support requested but could not be supported])])
           ])
     AC_SUBST(LIBPMIX_CFLAGS, $pmix_cppflags)

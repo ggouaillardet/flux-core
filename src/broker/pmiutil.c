@@ -16,7 +16,7 @@
 #include <dlfcn.h>
 #include <assert.h>
 #include <czmq.h>
-#ifdef HAVE_PMIX
+#ifdef HAVE_LIBPMIX
 #include <pmix.h>
 #endif
 
@@ -29,7 +29,7 @@
 #include "pmiutil.h"
 #include "liblist.h"
 
-#ifdef HAVE_PMIX
+#ifdef HAVE_LIBPMIX
 #define ANL_MAPPING "PMI_process_mapping"
 
 static pmix_proc_t myproc;
@@ -39,7 +39,7 @@ typedef enum {
     PMI_MODE_SINGLETON,
     PMI_MODE_DLOPEN,
     PMI_MODE_WIRE1,
-#ifdef HAVE_PMIX
+#ifdef HAVE_LIBPMIX
     PMI_MODE_PMIX,
 #endif
 } pmi_mode_t;
@@ -55,7 +55,7 @@ struct pmi_dso {
     int (*kvs_put) (const char *kvsname, const char *key, const char *value);
     int (*kvs_commit) (const char *kvsname);
     int (*kvs_get) (const char *kvsname, const char *key, char *value, int len);
-#ifdef HAVE_PMIX
+#ifdef HAVE_LIBPMIX
     pmix_status_t (*pmix_init) (pmix_proc_t *proc, pmix_info_t info[], size_t ninfo);
     pmix_status_t (*pmix_finalize) (void *, int);
     pmix_status_t (*get) (const pmix_proc_t *proc, const char key[], const pmix_info_t info[], size_t ninfo, pmix_value_t **val);
@@ -83,7 +83,7 @@ static void vdebugf (struct pmi_handle *pmi, const char *fmt, va_list ap)
                 pmi->mode == PMI_MODE_SINGLETON ? "singleton" :
                 pmi->mode == PMI_MODE_WIRE1 ? "wire.1" :
                 pmi->mode == PMI_MODE_DLOPEN ? "dlopen" :
-#ifdef HAVE_PMIX
+#ifdef HAVE_LIBPMIX
                 pmi->mode == PMI_MODE_PMIX ? "pmix" :
 #endif
                 "unknown",
@@ -100,7 +100,7 @@ static void debugf (struct pmi_handle *pmi, const char *fmt, ...)
     va_end (ap);
 }
 
-#ifdef HAVE_PMIX
+#ifdef HAVE_LIBPMIX
 static int convert_err(pmix_status_t rc)
 {
     switch (rc) {
@@ -305,7 +305,7 @@ error:
     return NULL;
 }
 
-#ifdef HAVE_PMIX
+#ifdef HAVE_LIBPMIX
 static struct pmi_dso *broker_pmix_dlopen (const char *pmix_library, int debug)
 {
     struct pmi_dso *dso;
@@ -373,7 +373,7 @@ error:
 int broker_pmi_kvs_commit (struct pmi_handle *pmi, const char *kvsname)
 {
     int ret = PMI_SUCCESS;
-#ifdef HAVE_PMIX
+#ifdef HAVE_LIBPMIX
     pmix_status_t rc;
 #endif
 
@@ -385,7 +385,7 @@ int broker_pmi_kvs_commit (struct pmi_handle *pmi, const char *kvsname)
         case PMI_MODE_DLOPEN:
             ret = pmi->dso->kvs_commit (kvsname);
             break;
-#ifdef HAVE_PMIX
+#ifdef HAVE_LIBPMIX
         case PMI_MODE_PMIX:
             rc = pmi->dso->commit();
             ret = convert_err(rc);
@@ -405,7 +405,7 @@ int broker_pmi_kvs_put (struct pmi_handle *pmi,
                         const char *value)
 {
     int ret = PMI_SUCCESS;
-#ifdef HAVE_PMIX
+#ifdef HAVE_LIBPMIX
     pmix_status_t rc;
     pmix_value_t val;
 #endif
@@ -419,7 +419,7 @@ int broker_pmi_kvs_put (struct pmi_handle *pmi,
         case PMI_MODE_DLOPEN:
             ret = pmi->dso->kvs_put (kvsname, key, value);
             break;
-#ifdef HAVE_PMIX
+#ifdef HAVE_LIBPMIX
         case PMI_MODE_PMIX:
             val.type = PMIX_STRING;
             val.data.string = (char*)value;
@@ -444,7 +444,7 @@ int broker_pmi_kvs_get (struct pmi_handle *pmi,
                                int len)
 {
     int ret = PMI_FAIL;
-#ifdef HAVE_PMIX
+#ifdef HAVE_LIBPMIX
     pmix_value_t *val;
     pmix_proc_t proc;
 #endif
@@ -458,7 +458,7 @@ int broker_pmi_kvs_get (struct pmi_handle *pmi,
         case PMI_MODE_DLOPEN:
             ret = pmi->dso->kvs_get (kvsname, key, value, len);
             break;
-#ifdef HAVE_PMIX
+#ifdef HAVE_LIBPMIX
         case PMI_MODE_PMIX:
             /* PMI-1 expects resource manager to set
              * process mapping in ANL notation. */
@@ -517,7 +517,7 @@ int broker_pmi_kvs_get (struct pmi_handle *pmi,
 int broker_pmi_barrier (struct pmi_handle *pmi)
 {
     int ret = PMI_SUCCESS;
-#ifdef HAVE_PMIX
+#ifdef HAVE_LIBPMIX
     pmix_status_t rc = PMIX_SUCCESS;
     pmix_info_t buf;
     int ninfo = 0;
@@ -534,7 +534,7 @@ int broker_pmi_barrier (struct pmi_handle *pmi)
         case PMI_MODE_DLOPEN:
             ret = pmi->dso->barrier();
             break;
-#ifdef HAVE_PMIX
+#ifdef HAVE_LIBPMIX
         case PMI_MODE_PMIX:
             info = &buf;
             PMIX_INFO_CONSTRUCT(info);
@@ -560,7 +560,7 @@ int broker_pmi_get_params (struct pmi_handle *pmi,
                            struct pmi_params *params)
 {
     int ret = PMI_SUCCESS;
-#ifdef HAVE_PMIX
+#ifdef HAVE_LIBPMIX
     pmix_status_t rc = PMIX_SUCCESS;
     pmix_value_t *val;
     pmix_info_t info[1];
@@ -590,7 +590,7 @@ int broker_pmi_get_params (struct pmi_handle *pmi,
             ret = pmi->dso->kvs_get_my_name (params->kvsname,
                                              sizeof (params->kvsname));
             break;
-#ifdef HAVE_PMIX
+#ifdef HAVE_LIBPMIX
         case PMI_MODE_PMIX:
             params->rank = myproc.rank;
 
@@ -633,7 +633,7 @@ int broker_pmi_init (struct pmi_handle *pmi)
 {
     int spawned;
     int ret = PMI_SUCCESS;
-#ifdef HAVE_PMIX
+#ifdef HAVE_LIBPMIX
     pmix_status_t rc = PMIX_SUCCESS;
     pmix_proc_t proc;
 #endif
@@ -647,7 +647,7 @@ int broker_pmi_init (struct pmi_handle *pmi)
         case PMI_MODE_DLOPEN:
             ret = pmi->dso->init(&spawned);
             break;
-#ifdef HAVE_PMIX
+#ifdef HAVE_LIBPMIX
         case PMI_MODE_PMIX:
             if (PMIX_SUCCESS != (rc = pmi->dso->pmix_init(&myproc, NULL, 0))) {
                 /* if we didn't see a PMIx server (e.g., missing envar),
@@ -681,7 +681,7 @@ int broker_pmi_finalize (struct pmi_handle *pmi)
         case PMI_MODE_DLOPEN:
             ret = pmi->dso->finalize ();
             break;
-#ifdef HAVE_PMIX
+#ifdef HAVE_LIBPMIX
         case PMI_MODE_PMIX:
             (void)pmi->dso->pmix_finalize (NULL, 0);
             break;
@@ -702,7 +702,7 @@ void broker_pmi_destroy (struct pmi_handle *pmi)
                 pmi_simple_client_destroy (pmi->cli);
                 break;
             case PMI_MODE_DLOPEN:
-#ifdef HAVE_PMIX
+#ifdef HAVE_LIBPMIX
             case PMI_MODE_PMIX:
 #endif
                 broker_pmi_dlclose (pmi->dso);
@@ -733,7 +733,7 @@ struct pmi_handle *broker_pmi_create (void)
                                                  NULL))) {
         pmi->mode = PMI_MODE_WIRE1;
     }
-#ifdef HAVE_PMIX
+#ifdef HAVE_LIBPMIX
     else if ((pmi->dso = broker_pmix_dlopen (getenv ("PMIX_LIBRARY"),
                                              pmi->debug))) {
         pmi->mode = PMI_MODE_PMIX;
