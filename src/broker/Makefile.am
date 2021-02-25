@@ -61,7 +61,7 @@ libbroker_la_SOURCES = \
 	publisher.h \
 	publisher.c
 
-if HAVE_PMIX
+if PMIX_ENABLED
 libbroker_la_SOURCES += \
 	pmixutil.h \
 	pmixutil.c
