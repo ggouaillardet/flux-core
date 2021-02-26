@@ -29,9 +29,6 @@
 #include "pmiutil.h"
 #include "liblist.h"
 
-#ifdef HAVE_LIBPMIX
-static pmix_proc_t myproc;
-#endif
 
 typedef enum {
     PMI_MODE_SINGLETON,
@@ -69,6 +66,9 @@ struct pmi_handle {
     int debug;
     pmi_mode_t mode;
     int rank;
+#ifdef HAVE_LIBPMIX
+    pmix_proc_t myproc;
+#endif
 };
 
 static void vdebugf (struct pmi_handle *pmi, const char *fmt, va_list ap)
@@ -540,7 +540,7 @@ int broker_pmi_get_params (struct pmi_handle *pmi,
     pmix_value_t *val;
     pmix_info_t info[1];
     bool  val_optinal = 1;
-    pmix_proc_t proc = myproc;
+    pmix_proc_t proc = pmi->myproc;
     proc.rank = PMIX_RANK_WILDCARD;
 #endif
 
@@ -567,7 +567,7 @@ int broker_pmi_get_params (struct pmi_handle *pmi,
             break;
 #ifdef HAVE_LIBPMIX
         case PMI_MODE_PMIX:
-            params->rank = myproc.rank;
+            params->rank = pmi->myproc.rank;
 
             /* set controlling parameters
              * PMIX_OPTIONAL - expect that these keys should be available on startup
@@ -588,7 +588,7 @@ int broker_pmi_get_params (struct pmi_handle *pmi,
             }
 
             PMIX_INFO_DESTRUCT(&info[0]);
-            pmix_strncpy(params->kvsname, myproc.nspace, sizeof(params->kvsname)-1);
+            pmix_strncpy(params->kvsname, pmi->myproc.nspace, sizeof(params->kvsname)-1);
             pmi->rank = params->rank;
             break;
 #endif
@@ -624,7 +624,7 @@ int broker_pmi_init (struct pmi_handle *pmi)
             break;
 #ifdef HAVE_LIBPMIX
         case PMI_MODE_PMIX:
-            if (PMIX_SUCCESS != (rc = pmi->dso->pmix_init(&myproc, NULL, 0))) {
+            if (PMIX_SUCCESS != (rc = pmi->dso->pmix_init(&pmi->myproc, NULL, 0))) {
                 /* if we didn't see a PMIx server (e.g., missing envar),
                  * then allow us to run as a singleton */
                 ret = PMI_ERR_INIT;
@@ -632,7 +632,7 @@ int broker_pmi_init (struct pmi_handle *pmi)
             }
 
             /* getting internal key requires special rank value */
-            memcpy(&proc, &myproc, sizeof(myproc));
+            memcpy(&proc, &pmi->myproc, sizeof(pmi->myproc));
             proc.rank = PMIX_RANK_WILDCARD;
 
             ret = PMI_SUCCESS;
