@@ -50,14 +50,6 @@ struct pmi_dso {
     int (*kvs_put) (const char *kvsname, const char *key, const char *value);
     int (*kvs_commit) (const char *kvsname);
     int (*kvs_get) (const char *kvsname, const char *key, char *value, int len);
-#ifdef HAVE_LIBPMIX
-    pmix_status_t (*pmix_init) (pmix_proc_t *proc, pmix_info_t info[], size_t ninfo);
-    pmix_status_t (*pmix_finalize) (void *, int);
-    pmix_status_t (*get) (const pmix_proc_t *proc, const char key[], const pmix_info_t info[], size_t ninfo, pmix_value_t **val);
-    pmix_status_t (*fence)(const pmix_proc_t procs[], size_t nprocs, const pmix_info_t info[], size_t ninfo);
-    pmix_status_t (*put)(pmix_scope_t scope, const pmix_key_t key, pmix_value_t *val);
-    pmix_status_t (*commit) ();
-#endif
 };
 
 struct pmi_handle {
@@ -303,72 +295,6 @@ error:
     return NULL;
 }
 
-#ifdef HAVE_LIBPMIX
-static struct pmi_dso *broker_pmix_dlopen (const char *pmix_library, int debug)
-{
-    struct pmi_dso *dso;
-    zlist_t *libs = NULL;
-    char *name;
-
-    if ((NULL == getenv ("PMIX_SERVER_URI")) && (NULL == getenv ("PMIX_SERVER_URI2"))) {
-        log_msg ("pmix-debug-dlopen: no PMIX environment");
-        /* No PMIx environment variable, fails */
-        return NULL;
-    }
-    if (!(dso = calloc (1, sizeof (*dso))))
-        return NULL;
-    if (!pmix_library)
-        pmix_library = "libpmix.so";
-    if (!(libs = liblist_create (pmix_library)))
-        goto error;
-    FOREACH_ZLIST (libs, name) {
-        dlerror ();
-        if (!(dso->dso = dlopen (name, RTLD_NOW | RTLD_GLOBAL))) {
-            if (debug) {
-                char *errstr = dlerror ();
-                if (errstr)
-                    log_msg ("pmix-debug-dlopen: %s", errstr);
-                else
-                    log_msg ("pmix-debug-dlopen: dlopen %s failed", name);
-            }
-        }
-        else if (dlsym (dso->dso, "flux_pmix_library")) {
-            if (debug)
-                log_msg ("pmix-debug-dlopen: skipping %s", name);
-            dlclose (dso->dso);
-            dso->dso = NULL;
-        }
-        else {
-            if (debug)
-                log_msg ("pmix-debug-dlopen: library name %s", name);
-        }
-    }
-    liblist_destroy (libs);
-    libs = NULL;
-    if (!dso->dso)
-        goto error;
-    dso->pmix_init = dlsym (dso->dso, "PMIx_Init");
-    dso->pmix_finalize = dlsym (dso->dso, "PMIx_Finalize");
-    dso->get = dlsym (dso->dso, "PMIx_Get");
-    dso->fence = dlsym (dso->dso, "PMIx_Fence");
-    dso->put = dlsym (dso->dso, "PMIx_Put");
-    dso->commit = dlsym (dso->dso, "PMIx_Commit");
-
-    if (!dso->pmix_init || !dso->pmix_finalize || !dso->get
-            || !dso->fence || !dso->put || !dso->commit ) {
-        log_msg ("pmix-debug-dlopen: dlsym: %s is missing required symbols",
-                 pmix_library);
-        goto error;
-    }
-    return dso;
-error:
-    broker_pmi_dlclose (dso);
-    if (libs)
-        liblist_destroy (libs);
-    return NULL;
-}
-#endif
-
 int broker_pmi_kvs_commit (struct pmi_handle *pmi, const char *kvsname)
 {
     int ret = PMI_SUCCESS;
@@ -386,8 +312,8 @@ int broker_pmi_kvs_commit (struct pmi_handle *pmi, const char *kvsname)
             break;
 #ifdef HAVE_LIBPMIX
         case PMI_MODE_PMIX:
-            rc = pmi->dso->commit();
-            ret = convert_err(rc);
+            rc = PMIx_Commit ();
+            ret = convert_err (rc);
             break;
 #endif
     }
@@ -422,8 +348,8 @@ int broker_pmi_kvs_put (struct pmi_handle *pmi,
         case PMI_MODE_PMIX:
             val.type = PMIX_STRING;
             val.data.string = (char*)value;
-            rc = pmi->dso->put(PMIX_GLOBAL, key, &val);
-            ret = convert_err(rc);
+            rc = PMIx_Put (PMIX_GLOBAL, key, &val);
+            ret = convert_err (rc);
             break;
 #endif
     }
@@ -462,20 +388,21 @@ int broker_pmi_kvs_get (struct pmi_handle *pmi,
         case PMI_MODE_PMIX: {
             pmix_status_t rc;
 
-            pmix_strncpy(proc.nspace, kvsname, PMIX_MAX_NSLEN);
+            pmix_strncpy (proc.nspace, kvsname, PMIX_MAX_NSLEN);
             proc.rank = from_rank < 0 ? PMIX_RANK_UNDEF : from_rank;
 
-            rc = pmi->dso->get(&proc, key, NULL, 0, &val);
-            if (PMIX_SUCCESS == rc && NULL != val) {
-                if (PMIX_STRING != val->type) {
+            rc = PMIx_Get (&proc, key, NULL, 0, &val);
+            if (rc == PMIX_SUCCESS && val != NULL) {
+                if (val->type != PMIX_STRING) {
                     rc = PMIX_ERROR;
-                } else if (NULL != val->data.string) {
-                    pmix_strncpy(value, val->data.string, len-1);
                 }
-                PMIX_VALUE_RELEASE(val);
+                else if (val->data.string != NULL) {
+                    pmix_strncpy (value, val->data.string, len-1);
+                }
+                PMIX_VALUE_RELEASE (val);
             }
 
-            ret = convert_err(rc);
+            ret = convert_err (rc);
             break;
         }
 #endif
@@ -493,10 +420,10 @@ int broker_pmi_barrier (struct pmi_handle *pmi)
 {
     int ret = PMI_SUCCESS;
 #ifdef HAVE_LIBPMIX
-    pmix_status_t rc = PMIX_SUCCESS;
+    pmix_status_t rc;
     pmix_info_t buf;
-    int ninfo = 0;
-    pmix_info_t *info = NULL;
+    int ninfo;
+    pmix_info_t *info;
     bool val = 1;
 #endif
 
@@ -512,18 +439,12 @@ int broker_pmi_barrier (struct pmi_handle *pmi)
 #ifdef HAVE_LIBPMIX
         case PMI_MODE_PMIX:
             info = &buf;
-            PMIX_INFO_CONSTRUCT(info);
-            /* Do not PMIX_INFO_LOAD(info, PMIX_COLLECT_DATA, &val, PMIX_BOOL)
-             * so we do not have to link with libpmix.so */
-            info[0].flags = 0;
-            pmix_strncpy(info[0].key, PMIX_COLLECT_DATA, PMIX_MAX_KEYLEN);
-            info[0].flags = 0;
-            info[0].value.type = PMIX_BOOL;
-            info[0].value.data.flag = val;
+            PMIX_INFO_CONSTRUCT (info);
+            PMIX_INFO_LOAD (info, PMIX_COLLECT_DATA, &val, PMIX_BOOL);
             ninfo = 1;
-            rc = pmi->dso->fence(NULL, 0, info, ninfo);
-            PMIX_INFO_DESTRUCT(info);
-            ret = convert_err(rc);
+            rc = PMIx_Fence (NULL, 0, info, ninfo);
+            PMIX_INFO_DESTRUCT (info);
+            ret = convert_err (rc);
             break;
 #endif
     }
@@ -536,10 +457,10 @@ int broker_pmi_get_params (struct pmi_handle *pmi,
 {
     int ret = PMI_SUCCESS;
 #ifdef HAVE_LIBPMIX
-    pmix_status_t rc = PMIX_SUCCESS;
+    pmix_status_t rc;
     pmix_value_t *val;
     pmix_info_t info[1];
-    bool  val_optinal = 1;
+    bool val_optional = 1;
     pmix_proc_t proc = pmi->myproc;
     proc.rank = PMIX_RANK_WILDCARD;
 #endif
@@ -569,27 +490,20 @@ int broker_pmi_get_params (struct pmi_handle *pmi,
         case PMI_MODE_PMIX:
             params->rank = pmi->myproc.rank;
 
-            /* set controlling parameters
-             * PMIX_OPTIONAL - expect that these keys should be available on startup
-             */
-            PMIX_INFO_CONSTRUCT(&info[0]);
-            /* Do not PMIX_INFO_LOAD(&info[0], PMIX_OPTIONAL, &val_optinal, PMIX_BOOL)
-             * so we do not have to link with libpmix.so */
-            info[0].flags = 0;
-            pmix_strncpy(info[0].key, PMIX_OPTIONAL, PMIX_MAX_KEYLEN);
-            info[0].flags = 0;
-            info[0].value.type = PMIX_BOOL;
-            info[0].value.data.flag = val_optinal;
+            pmix_strncpy (params->kvsname, pmi->myproc.nspace,
+                          sizeof(params->kvsname)-1);
 
-            rc = pmi->dso->get(&proc, PMIX_JOB_SIZE, info, 1, &val);
-            if (PMIX_SUCCESS == rc) {
-                rc = convert_int(&params->size, val);
-                PMIX_VALUE_RELEASE(val);
+            PMIX_INFO_CONSTRUCT (&info[0]);
+            PMIX_INFO_LOAD (&info[0], PMIX_OPTIONAL, &val_optional, PMIX_BOOL);
+
+            rc = PMIx_Get (&proc, PMIX_JOB_SIZE, info, 1, &val);
+            if (rc == PMIX_SUCCESS) {
+                rc = convert_int (&params->size, val);
+                PMIX_VALUE_RELEASE (val);
             }
 
-            PMIX_INFO_DESTRUCT(&info[0]);
-            pmix_strncpy(params->kvsname, pmi->myproc.nspace, sizeof(params->kvsname)-1);
-            pmi->rank = params->rank;
+            PMIX_INFO_DESTRUCT (&info[0]);
+            ret = convert_err (rc);
             break;
 #endif
     }
@@ -608,10 +522,6 @@ int broker_pmi_init (struct pmi_handle *pmi)
 {
     int spawned;
     int ret = PMI_SUCCESS;
-#ifdef HAVE_LIBPMIX
-    pmix_status_t rc = PMIX_SUCCESS;
-    pmix_proc_t proc;
-#endif
 
     switch (pmi->mode) {
         case PMI_MODE_SINGLETON:
@@ -624,18 +534,8 @@ int broker_pmi_init (struct pmi_handle *pmi)
             break;
 #ifdef HAVE_LIBPMIX
         case PMI_MODE_PMIX:
-            if (PMIX_SUCCESS != (rc = pmi->dso->pmix_init(&pmi->myproc, NULL, 0))) {
-                /* if we didn't see a PMIx server (e.g., missing envar),
-                 * then allow us to run as a singleton */
+            if (PMIx_Init (&pmi->myproc, NULL, 0) != PMIX_SUCCESS)
                 ret = PMI_ERR_INIT;
-                break;
-            }
-
-            /* getting internal key requires special rank value */
-            memcpy(&proc, &pmi->myproc, sizeof(pmi->myproc));
-            proc.rank = PMIX_RANK_WILDCARD;
-
-            ret = PMI_SUCCESS;
             break;
 #endif
     }
@@ -658,7 +558,7 @@ int broker_pmi_finalize (struct pmi_handle *pmi)
             break;
 #ifdef HAVE_LIBPMIX
         case PMI_MODE_PMIX:
-            (void)pmi->dso->pmix_finalize (NULL, 0);
+            PMIx_Finalize (NULL, 0);
             break;
 #endif
     }
@@ -671,15 +571,15 @@ void broker_pmi_destroy (struct pmi_handle *pmi)
     if (pmi) {
         int saved_errno = errno;
         switch (pmi->mode) {
+#ifdef HAVE_LIBPMIX
+            case PMI_MODE_PMIX:
+#endif
             case PMI_MODE_SINGLETON:
                 break;
             case PMI_MODE_WIRE1:
                 pmi_simple_client_destroy (pmi->cli);
                 break;
             case PMI_MODE_DLOPEN:
-#ifdef HAVE_LIBPMIX
-            case PMI_MODE_PMIX:
-#endif
                 broker_pmi_dlclose (pmi->dso);
                 break;
         }
@@ -709,8 +609,7 @@ struct pmi_handle *broker_pmi_create (void)
         pmi->mode = PMI_MODE_WIRE1;
     }
 #ifdef HAVE_LIBPMIX
-    else if ((pmi->dso = broker_pmix_dlopen (getenv ("PMIX_LIBRARY"),
-                                             pmi->debug))) {
+    else if (getenv ("PMIX_SERVER_URI") || getenv ("PMIX_SERVER_URI2")) {
         pmi->mode = PMI_MODE_PMIX;
     }
 #endif
