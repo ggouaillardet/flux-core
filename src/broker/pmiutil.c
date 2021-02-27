@@ -391,7 +391,14 @@ int broker_pmi_kvs_get (struct pmi_handle *pmi,
             strncpy (proc.nspace, kvsname, PMIX_MAX_NSLEN);
             proc.rank = from_rank < 0 ? PMIX_RANK_UNDEF : from_rank;
 
+            debugf (pmi,
+                    "kvs_get (kvsname=%s key=%s from=%d) ...",
+                    kvsname, key, from_rank);
+
             rc = PMIx_Get (&proc, key, NULL, 0, &val);
+            debugf (pmi,
+                    "... kvs_get (kvsname=%s key=%s from=%d)",
+                    kvsname, key, from_rank);
             if (rc == PMIX_SUCCESS && val != NULL) {
                 if (val->type != PMIX_STRING) {
                     rc = PMIX_ERROR;
