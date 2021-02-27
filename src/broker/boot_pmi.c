@@ -135,7 +135,7 @@ static int set_instance_level_attr (struct pmi_handle *pmi,
                                  "flux.instance-level",
                                  val,
                                  sizeof (val),
-                                 my_rank);
+                                 -1);
     if (result == PMI_SUCCESS)
         level = val;
     if (attr_add (attrs, "instance-level", level, FLUX_ATTRFLAG_IMMUTABLE) < 0)
