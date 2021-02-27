@@ -388,7 +388,7 @@ int broker_pmi_kvs_get (struct pmi_handle *pmi,
         case PMI_MODE_PMIX: {
             pmix_status_t rc;
 
-            pmix_strncpy (proc.nspace, kvsname, PMIX_MAX_NSLEN);
+            strncpy (proc.nspace, kvsname, PMIX_MAX_NSLEN);
             proc.rank = from_rank < 0 ? PMIX_RANK_UNDEF : from_rank;
 
             rc = PMIx_Get (&proc, key, NULL, 0, &val);
@@ -397,7 +397,7 @@ int broker_pmi_kvs_get (struct pmi_handle *pmi,
                     rc = PMIX_ERROR;
                 }
                 else if (val->data.string != NULL) {
-                    pmix_strncpy (value, val->data.string, len-1);
+                    strncpy (value, val->data.string, len-1);
                 }
                 PMIX_VALUE_RELEASE (val);
             }
@@ -490,8 +490,8 @@ int broker_pmi_get_params (struct pmi_handle *pmi,
         case PMI_MODE_PMIX:
             params->rank = pmi->myproc.rank;
 
-            pmix_strncpy (params->kvsname, pmi->myproc.nspace,
-                          sizeof(params->kvsname)-1);
+            strncpy (params->kvsname, pmi->myproc.nspace,
+                     sizeof(params->kvsname)-1);
 
             PMIX_INFO_CONSTRUCT (&info[0]);
             PMIX_INFO_LOAD (&info[0], PMIX_OPTIONAL, &val_optional, PMIX_BOOL);
